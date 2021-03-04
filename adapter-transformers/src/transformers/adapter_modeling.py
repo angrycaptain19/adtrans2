@@ -212,6 +212,13 @@ class BertFusion(nn.Module):
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.squeeze(torch.matmul(query_layer.unsqueeze(2), key_layer.transpose(-2, -1)), dim=2)
 
+        print("pooh attention_scores", attention_scores.shape)
+        print("pooh attention_scores", attention_scores)
+        print("pooh attention_scores[:,:,0]", attention_scores[:,:,0])
+        print("pooh attention_scores[:,:,1]", attention_scores[:,:,1])
+        print("pooh attention_scores[:,:,2]", attention_scores[:,:,2])
+
+
         attention_scores = self.dropout(attention_scores)
 
         # Normalize the attention scores to probabilities.

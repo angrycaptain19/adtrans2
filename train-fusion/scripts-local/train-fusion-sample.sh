@@ -1,7 +1,7 @@
 export SIQA_DIR=/home/yujin/Work/adtrans/data/social_iqa
 export OUTPUT_DIR=/home/yujin/Work/adtrans/outputs/fusions
 
-python ../run_multiple_choice.py \
+python ../run_multiple_choice_mod.py \
     --task_name siqa \
     --model_name_or_path roberta-large \
     --train_fusion \
@@ -16,7 +16,7 @@ python ../run_multiple_choice.py \
     --per_device_train_batch_size=8 \
     --gradient_accumulation_steps 1 \
     --evaluate_during_training \
-    --logging_steps 500 \
-    --save_steps 500 \
+    --logging_steps 50 \
+    --save_steps 50 \
     --overwrite_output \
     # > train-attr-effect.log 2>&1 &

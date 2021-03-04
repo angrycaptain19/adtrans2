@@ -38,7 +38,7 @@ from transformers import (
     set_seed,
 )
 from utils_multiple_choice import MultipleChoiceDataset, Split, processors
-import wandb
+# import wandb
 import pandas as pd
 
 
@@ -119,7 +119,7 @@ def main():
 
     # project_name = data_args.task_name + "-" + model_args.model_name_or_path
     # if '/' not in project_name:
-    wandb.init(project="roberta-large", name="fusion-xAttr-xEffect")
+    # wandb.init(project="roberta-large", name="fusion-xAttr-xEffect")
 
     if (
         os.path.exists(training_args.output_dir)
@@ -259,9 +259,9 @@ def main():
                     "value_before_softmax": True,
                     "value_initialized": True,
                 }
-                model.add_fusion(['default','xAttr','xEffect'], adapter_fusion_config=fusion_config)
+                model.add_fusion(adapter_names[0], adapter_fusion_config=fusion_config)
             else:
-                model.add_fusion(['default','xAttr','xEffect'])
+                model.add_fusion(adapter_names[0])
             
             model.train_fusion(adapter_names)
 

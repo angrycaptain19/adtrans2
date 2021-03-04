@@ -119,7 +119,7 @@ def main():
 
     # project_name = data_args.task_name + "-" + model_args.model_name_or_path
     # if '/' not in project_name:
-    wandb.init(project="roberta-large", name="fusion-xAttr")
+    wandb.init(project="roberta-large", name="fusion-xEffect")
 
     if (
         os.path.exists(training_args.output_dir)
@@ -240,10 +240,10 @@ def main():
     if (fusion_args.train_fusion + fusion_args.test_fusion) == 1 :
         # load adapters
         model.load_adapter("/home/yujin/Work/adtrans/outputs/adapters/default/default")
-        model.load_adapter("/home/yujin/Work/adtrans/outputs/adapters/xAttr/xAttr")
-        # model.load_adapter("/home/yujin/Work/adtrans/outputs/adapters/xEffect/xEffect")
+        # model.load_adapter("/home/yujin/Work/adtrans/outputs/adapters/xAttr/xAttr")
+        model.load_adapter("/home/yujin/Work/adtrans/outputs/adapters/xEffect/xEffect")
 
-        adapter_names = [['default','xAttr']]
+        adapter_names = [['default','xEffect']]
 
 
         if fusion_args.train_fusion:

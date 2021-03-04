@@ -1,4 +1,4 @@
-export SIQA_DIR=/home/yujin/Work/adtrans/data/social_iqa
+export SIQA_DIR=/home/yujin/Work/adtrans/dataset/social_iqa
 export OUTPUT_DIR=/home/yujin/Work/adtrans/outputs/fusions
 
 python ../run_multiple_choice_mod.py \
@@ -6,17 +6,15 @@ python ../run_multiple_choice_mod.py \
     --model_name_or_path roberta-large \
     --train_fusion \
     --do_train \
-    --do_predict \
     --seed 42 \
     --data_dir $SIQA_DIR \
     --learning_rate 5e-5 \
-    --num_train_epochs 1 \
+    --num_train_epochs 3 \
     --max_seq_length 128 \
     --output_dir $OUTPUT_DIR/"train-attr" \
     --per_device_eval_batch_size=8 \
     --per_device_train_batch_size=8 \
     --gradient_accumulation_steps 1 \
-    --load_best_model_at_end \
     --evaluate_during_training \
     --logging_steps 500 \
     --save_steps 500 \
