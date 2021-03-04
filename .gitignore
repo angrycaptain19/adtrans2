@@ -1,0 +1,12 @@
+*.log
+*.json
+*.txt
+
+/data
+**/data
+/outputs
+**/outputs
+/__pycache__
+**/__pycache__
+/wandb
+**/wandb
