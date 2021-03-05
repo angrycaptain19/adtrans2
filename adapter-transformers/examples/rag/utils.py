@@ -158,13 +158,12 @@ def load_json(path):
 
 def get_git_info():
     repo = git.Repo(search_parent_directories=True)
-    repo_infos = {
+    return {
         "repo_id": str(repo),
         "repo_sha": str(repo.head.object.hexsha),
         "repo_branch": str(repo.active_branch),
         "hostname": str(socket.gethostname()),
     }
-    return repo_infos
 
 
 def lmap(f: Callable, x: Iterable) -> List:
@@ -206,8 +205,7 @@ def f1_score(prediction, ground_truth):
         return 0
     precision = 1.0 * num_same / len(prediction_tokens)
     recall = 1.0 * num_same / len(ground_truth_tokens)
-    f1 = (2 * precision * recall) / (precision + recall)
-    return f1
+    return (2 * precision * recall) / (precision + recall)
 
 
 def exact_match_score(prediction, ground_truth):
@@ -216,10 +214,12 @@ def exact_match_score(prediction, ground_truth):
 
 def calculate_exact_match(output_lns: List[str], reference_lns: List[str]) -> Dict:
     assert len(output_lns) == len(reference_lns)
-    em = 0
-    for hypo, pred in zip(output_lns, reference_lns):
-        em += exact_match_score(hypo, pred)
-    if len(output_lns) > 0:
+    em = sum(
+        exact_match_score(hypo, pred)
+        for hypo, pred in zip(output_lns, reference_lns)
+    )
+
+    if output_lns:
         em /= len(output_lns)
     return {"em": em}
 

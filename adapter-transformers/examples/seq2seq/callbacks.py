@@ -13,8 +13,7 @@ from utils import save_json
 
 def count_trainable_parameters(model):
     model_parameters = filter(lambda p: p.requires_grad, model.parameters())
-    params = sum([np.prod(p.size()) for p in model_parameters])
-    return params
+    return sum(np.prod(p.size()) for p in model_parameters)
 
 
 logger = logging.getLogger(__name__)
@@ -97,13 +96,12 @@ def get_checkpoint_callback(output_dir, metric, save_top_k=1, lower_is_better=Fa
             f"seq2seq callbacks only support rouge2, bleu and loss, got {metric}, You can make your own by adding to this function."
         )
 
-    checkpoint_callback = ModelCheckpoint(
+    return ModelCheckpoint(
         filepath=os.path.join(output_dir, exp),
         monitor=f"val_{metric}",
         mode="min" if "loss" in metric else "max",
         save_top_k=save_top_k,
     )
-    return checkpoint_callback
 
 
 def get_early_stopping_callback(metric, patience):

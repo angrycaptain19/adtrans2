@@ -126,8 +126,9 @@ def main():
         valid_loss = None
 
     def format_log(loss, split):
-        log_str = "| {0} loss {1:5.2f} | {0} ppl {2:9.3f} ".format(split, loss, math.exp(loss))
-        return log_str
+        return "| {0} loss {1:5.2f} | {0} ppl {2:9.3f} ".format(
+            split, loss, math.exp(loss)
+        )
 
     log_str = ""
     if valid_loss is not None:

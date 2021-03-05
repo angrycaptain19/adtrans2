@@ -69,7 +69,7 @@ class RagRetrieverTest(TestCase):
         os.makedirs(dpr_tokenizer_path, exist_ok=True)
         self.vocab_file = os.path.join(dpr_tokenizer_path, DPR_VOCAB_FILES_NAMES["vocab_file"])
         with open(self.vocab_file, "w", encoding="utf-8") as vocab_writer:
-            vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
+            vocab_writer.write("".join(x + "\n" for x in vocab_tokens))
 
         # BART tok
         vocab = [
@@ -95,7 +95,6 @@ class RagRetrieverTest(TestCase):
             "<unk>",
         ]
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
-        merges = ["#version: 0.2", "\u0120 l", "\u0120l o", "\u0120lo w", "e r", ""]
         self.special_tokens_map = {"unk_token": "<unk>"}
 
         bart_tokenizer_path = os.path.join(self.tmpdirname, "bart_tokenizer")
@@ -105,6 +104,7 @@ class RagRetrieverTest(TestCase):
         with open(self.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
         with open(self.merges_file, "w", encoding="utf-8") as fp:
+            merges = ["#version: 0.2", "\u0120 l", "\u0120l o", "\u0120lo w", "e r", ""]
             fp.write("\n".join(merges))
 
     def get_dpr_tokenizer(self) -> DPRQuestionEncoderTokenizer:

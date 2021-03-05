@@ -301,7 +301,7 @@ def main(args):
                     preds_file.write("\n".join(answers) + "\n")
                     preds_file.flush()
                     questions = []
-            if len(questions) > 0:
+            if questions:
                 answers = evaluate_batch_fn(args, model, questions)
                 preds_file.write("\n".join(answers))
                 preds_file.flush()

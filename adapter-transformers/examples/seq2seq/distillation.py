@@ -107,14 +107,13 @@ class BartSummarizationDistiller(SummarizationModule):
         s_logits_slct = s_logits_slct.view(-1, vocab_size)  # (bs * seq_length, voc_size) modulo the 1s in mask
         t_logits_slct = t_logits_slct.view(-1, vocab_size)  # (bs * seq_length, voc_size) modulo the 1s in mask
         assert t_logits_slct.size() == s_logits_slct.size()
-        loss_ce = (
+        return (
             self.ce_loss_fct(
                 F.log_softmax(s_logits_slct / self.temperature, dim=-1),
                 F.softmax(t_logits_slct / self.temperature, dim=-1),
             )
             * (self.temperature) ** 2
         )
-        return loss_ce
 
     @staticmethod
     def add_model_specific_args(parser, root_dir):
@@ -210,8 +209,7 @@ class BartSummarizationDistiller(SummarizationModule):
             student_states = F.layer_norm(student_states, student_states.shape[1:])
             teacher_states = F.layer_norm(teacher_states, teacher_states.shape[1:])
         mse = F.mse_loss(student_states, teacher_states, reduction="none")
-        masked_mse = (mse * mask.unsqueeze(0).unsqueeze(-1)).sum() / valid_count
-        return masked_mse
+        return (mse * mask.unsqueeze(0).unsqueeze(-1)).sum() / valid_count
 
 
 def add_distill_args(parser):
@@ -260,8 +258,7 @@ def create_module(args):
         module_cls = BartTranslationDistiller if "translation" in args.task else BartSummarizationDistiller
     args.setup_cls: str = module_cls.__name__
     print(f"using module {args.setup_cls}")
-    model = module_cls(args)
-    return model
+    return module_cls(args)
 
 
 def distill_main(args):

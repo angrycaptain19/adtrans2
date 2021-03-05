@@ -162,7 +162,7 @@ def mask_heads(args, model, eval_dataloader):
     num_to_mask = max(1, int(new_head_mask.numel() * args.masking_amount))
 
     current_score = original_score
-    while current_score >= original_score * args.masking_threshold:
+    while current_score >= current_score * args.masking_threshold:
         head_mask = new_head_mask.clone()  # save current head mask
         # heads from least important to most - keep only not-masked heads
         head_importance[head_mask == 0.0] = float("Inf")
@@ -215,9 +215,11 @@ def prune_heads(args, model, eval_dataloader, head_mask):
     original_time = datetime.now() - before_time
 
     original_num_params = sum(p.numel() for p in model.parameters())
-    heads_to_prune = dict(
-        (layer, (1 - head_mask[layer].long()).nonzero().squeeze().tolist()) for layer in range(len(head_mask))
-    )
+    heads_to_prune = {
+        layer: (1 - head_mask[layer].long()).nonzero().squeeze().tolist()
+        for layer in range(len(head_mask))
+    }
+
 
     assert sum(len(h) for h in heads_to_prune.values()) == (1 - head_mask.long()).sum().item()
     model.prune_heads(heads_to_prune)
@@ -388,16 +390,18 @@ def main():
     # download model & vocab.
 
     config = AutoConfig.from_pretrained(
-        args.config_name if args.config_name else args.model_name_or_path,
+        args.config_name or args.model_name_or_path,
         num_labels=num_labels,
         finetuning_task=args.task_name,
         output_attentions=True,
         cache_dir=args.cache_dir,
     )
+
     tokenizer = AutoTokenizer.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+        args.tokenizer_name or args.model_name_or_path,
         cache_dir=args.cache_dir,
     )
+
     model = AutoModelForSequenceClassification.from_pretrained(
         args.model_name_or_path,
         from_tf=bool(".ckpt" in args.model_name_or_path),

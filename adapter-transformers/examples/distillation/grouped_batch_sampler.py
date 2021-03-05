@@ -27,8 +27,7 @@ from utils import logger
 def _quantize(x, bins):
     bins = copy.deepcopy(bins)
     bins = sorted(bins)
-    quantized = list(map(lambda y: bisect.bisect_right(bins, y), x))
-    return quantized
+    return list(map(lambda y: bisect.bisect_right(bins, y), x))
 
 
 def create_lengths_groups(lengths, k=0):

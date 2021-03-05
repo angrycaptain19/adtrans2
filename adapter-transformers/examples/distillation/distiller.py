@@ -126,22 +126,36 @@ class Distiller:
         optimizer_grouped_parameters = [
             {
                 "params": [
-                    p for n, p in student.named_parameters() if not any(nd in n for nd in no_decay) and p.requires_grad
+                    p
+                    for n, p in student.named_parameters()
+                    if all(nd not in n for nd in no_decay) and p.requires_grad
                 ],
                 "weight_decay": params.weight_decay,
             },
             {
                 "params": [
-                    p for n, p in student.named_parameters() if any(nd in n for nd in no_decay) and p.requires_grad
+                    p
+                    for n, p in student.named_parameters()
+                    if any(nd in n for nd in no_decay) and p.requires_grad
                 ],
                 "weight_decay": 0.0,
             },
         ]
+
         logger.info(
-            "------ Number of trainable parameters (student): %i"
-            % sum([p.numel() for p in self.student.parameters() if p.requires_grad])
+            (
+                "------ Number of trainable parameters (student): %i"
+                % sum(
+                    p.numel() for p in self.student.parameters() if p.requires_grad
+                )
+            )
         )
-        logger.info("------ Number of parameters (student): %i" % sum([p.numel() for p in self.student.parameters()]))
+
+        logger.info(
+            "------ Number of parameters (student): %i"
+            % sum(p.numel() for p in self.student.parameters())
+        )
+
         self.optimizer = AdamW(
             optimizer_grouped_parameters, lr=params.learning_rate, eps=params.adam_epsilon, betas=(0.9, 0.98)
         )
