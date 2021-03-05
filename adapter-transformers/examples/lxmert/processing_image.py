@@ -46,10 +46,7 @@ class ResizeShortestEdge:
             if size == 0:
                 return img
             scale = size * 1.0 / min(h, w)
-            if h < w:
-                newh, neww = size, scale * w
-            else:
-                newh, neww = scale * h, size
+            newh, neww = (size, scale * w) if h < w else (scale * h, size)
             if max(newh, neww) > self.max_size:
                 scale = self.max_size * 1.0 / max(newh, neww)
                 newh = newh * scale
@@ -104,7 +101,7 @@ class Preprocess:
             for i in range(len(images)):
                 if isinstance(images[i], torch.Tensor):
                     images.insert(i, images.pop(i).to(self.device).float())
-                elif not isinstance(images[i], torch.Tensor):
+                else:
                     images.insert(
                         i,
                         torch.as_tensor(img_tensorize(images.pop(i), input_format=self.input_format))

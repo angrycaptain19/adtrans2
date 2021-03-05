@@ -86,11 +86,23 @@ def train(args, train_dataset, model, tokenizer, criterion):
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
         {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if all(nd not in n for nd in no_decay)
+            ],
             "weight_decay": args.weight_decay,
         },
-        {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
     ]
+
 
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(
@@ -283,7 +295,7 @@ def evaluate(args, model, tokenizer, criterion, prefix=""):
             preds = np.append(preds, torch.sigmoid(logits).detach().cpu().numpy() > 0.5, axis=0)
             out_label_ids = np.append(out_label_ids, labels.detach().cpu().numpy(), axis=0)
 
-    eval_loss = eval_loss / nb_eval_steps
+    eval_loss /= nb_eval_steps
     result = {
         "loss": eval_loss,
         "macro_f1": f1_score(out_label_ids, preds, average="macro"),
@@ -304,8 +316,13 @@ def load_examples(args, tokenizer, evaluate=False):
     path = os.path.join(args.data_dir, "dev.jsonl" if evaluate else "train.jsonl")
     transforms = get_image_transforms()
     labels = get_mmimdb_labels()
-    dataset = JsonlDataset(path, tokenizer, transforms, labels, args.max_seq_length - args.num_image_embeds - 2)
-    return dataset
+    return JsonlDataset(
+        path,
+        tokenizer,
+        transforms,
+        labels,
+        args.max_seq_length - args.num_image_embeds - 2,
+    )
 
 
 def main():
@@ -487,12 +504,16 @@ def main():
     # Setup model
     labels = get_mmimdb_labels()
     num_labels = len(labels)
-    transformer_config = AutoConfig.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
+    transformer_config = AutoConfig.from_pretrained(
+        args.config_name or args.model_name_or_path
+    )
+
     tokenizer = AutoTokenizer.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+        args.tokenizer_name or args.model_name_or_path,
         do_lower_case=args.do_lower_case,
         cache_dir=args.cache_dir,
     )
+
     transformer = AutoModel.from_pretrained(
         args.model_name_or_path, config=transformer_config, cache_dir=args.cache_dir
     )
@@ -544,9 +565,15 @@ def main():
     if args.do_eval and args.local_rank in [-1, 0]:
         checkpoints = [args.output_dir]
         if args.eval_all_checkpoints:
-            checkpoints = list(
-                os.path.dirname(c) for c in sorted(glob.glob(args.output_dir + "/**/" + WEIGHTS_NAME, recursive=True))
-            )
+            checkpoints = [
+                os.path.dirname(c)
+                for c in sorted(
+                    glob.glob(
+                        args.output_dir + "/**/" + WEIGHTS_NAME, recursive=True
+                    )
+                )
+            ]
+
 
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
@@ -556,7 +583,7 @@ def main():
             model.load_state_dict(torch.load(checkpoint))
             model.to(args.device)
             result = evaluate(args, model, tokenizer, criterion, prefix=prefix)
-            result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
+            result = {k + "_{}".format(global_step): v for k, v in result.items()}
             results.update(result)
 
     return results

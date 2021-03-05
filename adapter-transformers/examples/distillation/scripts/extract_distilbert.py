@@ -16,6 +16,7 @@
 Preprocessing script before training DistilBERT.
 Specific to BERT -> DistilBERT.
 """
+
 import argparse
 
 import torch
@@ -33,17 +34,20 @@ if __name__ == "__main__":
     parser.add_argument("--vocab_transform", action="store_true")
     args = parser.parse_args()
 
-    if args.model_type == "bert":
-        model = BertForMaskedLM.from_pretrained(args.model_name)
-        prefix = "bert"
-    else:
+    if args.model_type != "bert":
         raise ValueError('args.model_type should be "bert".')
 
+    model = BertForMaskedLM.from_pretrained(args.model_name)
+    prefix = "bert"
     state_dict = model.state_dict()
-    compressed_sd = {}
+    compressed_sd = {
+        f"distilbert.embeddings.{w}.weight": state_dict[
+            f"{prefix}.embeddings.{w}.weight"
+        ]
+        for w in ["word_embeddings", "position_embeddings"]
+    }
 
-    for w in ["word_embeddings", "position_embeddings"]:
-        compressed_sd[f"distilbert.embeddings.{w}.weight"] = state_dict[f"{prefix}.embeddings.{w}.weight"]
+
     for w in ["weight", "bias"]:
         compressed_sd[f"distilbert.embeddings.LayerNorm.{w}"] = state_dict[f"{prefix}.embeddings.LayerNorm.{w}"]
 

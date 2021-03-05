@@ -81,13 +81,12 @@ eli5_train, eli5_train_q_index = load_train_data()
 def find_nearest_training(question, n_results=10):
     q_rep = embed_questions_for_retrieval([question], qar_tokenizer, qar_model)
     D, I = eli5_train_q_index.search(q_rep, n_results)
-    nn_examples = [eli5_train[int(i)] for i in I[0]]
-    return nn_examples
+    return [eli5_train[int(i)] for i in I[0]]
 
 
 def make_support(question, source="wiki40b", method="dense", n_results=10):
     if source == "none":
-        support_doc, hit_lst = (" <P> ".join(["" for _ in range(11)]).strip(), [])
+        support_doc, hit_lst = (" <P> ".join("" for _ in range(11)).strip(), [])
     else:
         if method == "dense":
             support_doc, hit_lst = query_qa_dense_index(
@@ -283,7 +282,7 @@ if st.button("Show me!"):
                 if tuple(res_s) not in support_list:
                     support_list += [tuple(res_s)]
             support_list = support_list[:10]
-            question_doc = "<P> " + " <P> ".join([res[-1] for res in support_list])
+            question_doc = "<P> " + " <P> ".join(res[-1] for res in support_list)
         else:
             question_doc, support_list = make_support(question, source=wiki_source, method=index_type, n_results=10)
     if action in [0, 3]:
@@ -310,8 +309,12 @@ if st.button("Show me!"):
             else:
                 sec_list = sec_titles.split(" & ")
                 sections = " & ".join(
-                    ["[{}]({}#{})".format(sec.strip(), wiki_url, sec.strip().replace(" ", "_")) for sec in sec_list]
+                    "[{}]({}#{})".format(
+                        sec.strip(), wiki_url, sec.strip().replace(" ", "_")
+                    )
+                    for sec in sec_list
                 )
+
             st.markdown(
                 "{0:02d} - **Article**: {1:<18} <br>  _Section_: {2}".format(i + 1, res[0], sections),
                 unsafe_allow_html=True,
@@ -327,10 +330,23 @@ if st.button("Show me!"):
             "--- \n ### The most similar question in the ELI5 training set was: \n\n {}".format(train_exple["title"])
         )
         answers_st = [
-            "{}. {}".format(i + 1, "  \n".join([line.strip() for line in ans.split("\n") if line.strip() != ""]))
-            for i, (ans, sc) in enumerate(zip(train_exple["answers"]["text"], train_exple["answers"]["score"]))
+            "{}. {}".format(
+                i + 1,
+                "  \n".join(
+                    line.strip()
+                    for line in ans.split("\n")
+                    if line.strip() != ""
+                ),
+            )
+            for i, (ans, sc) in enumerate(
+                zip(
+                    train_exple["answers"]["text"],
+                    train_exple["answers"]["score"],
+                )
+            )
             if i == 0 or sc > 2
         ]
+
         st.markdown("##### Its answers were: \n\n {}".format("\n".join(answers_st)))
 
 

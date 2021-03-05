@@ -347,7 +347,7 @@ class SynonymProcessor(DataProcessor):
     def _create_examples(self, lines: List[List[str]], type: str):
         """Creates examples for the training and dev sets."""
 
-        examples = [
+        return [
             InputExample(
                 example_id=line[0],
                 question="",  # in the swag dataset, the
@@ -359,8 +359,6 @@ class SynonymProcessor(DataProcessor):
             )
             for line in lines  # we skip the line with the column names
         ]
-
-        return examples
 
 
 class SwagProcessor(DataProcessor):
@@ -383,7 +381,6 @@ class SwagProcessor(DataProcessor):
             "For swag testing, the input file does not contain a label column. It can not be tested in current code"
             "setting!"
         )
-        return self._create_examples(self._read_csv(os.path.join(data_dir, "test.csv")), "test")
 
     def get_labels(self):
         """See base class."""
@@ -398,7 +395,7 @@ class SwagProcessor(DataProcessor):
         if type == "train" and lines[0][-1] != "label":
             raise ValueError("For training, the input file must contain a label column.")
 
-        examples = [
+        return [
             InputExample(
                 example_id=line[2],
                 question=line[5],  # in the swag dataset, the
@@ -410,8 +407,6 @@ class SwagProcessor(DataProcessor):
             )
             for line in lines[1:]  # we skip the line with the column names
         ]
-
-        return examples
 
 
 class ArcProcessor(DataProcessor):
@@ -437,8 +432,7 @@ class ArcProcessor(DataProcessor):
 
     def _read_json(self, input_file):
         with open(input_file, "r", encoding="utf-8") as fin:
-            lines = fin.readlines()
-            return lines
+            return fin.readlines()
 
     def _create_examples(self, lines, type):
         """Creates examples for the training and dev sets."""

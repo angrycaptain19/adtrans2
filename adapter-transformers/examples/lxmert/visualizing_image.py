@@ -143,11 +143,7 @@ class SingleImageViz:
         instance_area = (y1 - y0) * (x1 - x0)
         small = _SMALL_OBJ * self.scale
         if instance_area < small or y1 - y0 < 40 * self.scale:
-            if y1 >= self.height - 5:
-                text_pos = (x1, y0)
-            else:
-                text_pos = (x0, y1)
-
+            text_pos = (x1, y0) if y1 >= self.height - 5 else (x0, y1)
         height_ratio = (y1 - y0) / np.sqrt(self.height * self.width)
         lighter_color = self._change_color_brightness(color, brightness_factor=0.7)
         font_size = np.clip((height_ratio - 0.02) / 0.08 + 1, 1.2, 2)
@@ -262,8 +258,9 @@ class SingleImageViz:
         modified_lightness = polygon_color[1] + (brightness_factor * polygon_color[1])
         modified_lightness = 0.0 if modified_lightness < 0.0 else modified_lightness
         modified_lightness = 1.0 if modified_lightness > 1.0 else modified_lightness
-        modified_color = colorsys.hls_to_rgb(polygon_color[0], modified_lightness, polygon_color[2])
-        return modified_color
+        return colorsys.hls_to_rgb(
+            polygon_color[0], modified_lightness, polygon_color[2]
+        )
 
 
 # Color map

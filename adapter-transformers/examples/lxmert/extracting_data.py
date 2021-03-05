@@ -92,7 +92,7 @@ class Extract:
                 batch = []
                 yield list(map(list, zip(*temp)))
 
-        for i in range(1):
+        for _ in range(1):
             yield list(map(list, zip(*batch)))
 
     def __call__(self):

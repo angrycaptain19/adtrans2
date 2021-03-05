@@ -160,10 +160,7 @@ class Config:
 
     def __str__(self):
         t = "    "
-        if self._name != "root":
-            r = f"{t * (self._level-1)}{self._name}:\n"
-        else:
-            r = ""
+        r = f"{t * (self._level-1)}{self._name}:\n" if self._name != "root" else ""
         level = self._level
         for i, (k, v) in enumerate(self._pointer.items()):
             if isinstance(v, Config):
@@ -516,8 +513,7 @@ def get_data(query, delim=","):
 
 def get_image_from_url(url):
     response = requests.get(url)
-    img = np.array(Image.open(BytesIO(response.content)))
-    return img
+    return np.array(Image.open(BytesIO(response.content)))
 
 
 # to load legacy frcnn checkpoint from detectron

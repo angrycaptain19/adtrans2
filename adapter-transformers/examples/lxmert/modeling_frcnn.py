@@ -62,18 +62,23 @@ def pad_list_tensors(
     assert padding in {"max_detections", "max_batch", None}
     new = []
     if padding is None:
-        if return_tensors is None:
-            return list_tensors
-        elif return_tensors == "pt":
-            if not isinstance(list_tensors, torch.Tensor):
-                return torch.stack(list_tensors).to(location)
-            else:
-                return list_tensors.to(location)
+        if (
+            return_tensors is not None
+            and return_tensors == "pt"
+            and not isinstance(list_tensors, torch.Tensor)
+        ):
+            return torch.stack(list_tensors).to(location)
+        elif (
+            return_tensors is not None
+            and return_tensors == "pt"
+            or return_tensors is not None
+            and isinstance(list_tensors, list)
+        ):
+            return list_tensors.to(location)
+        elif return_tensors is not None:
+            return np.array(list_tensors.to(location))
         else:
-            if not isinstance(list_tensors, list):
-                return np.array(list_tensors.to(location))
-            else:
-                return list_tensors.to(location)
+            return list_tensors
     if padding == "max_detections":
         assert max_detections is not None, "specify max number of detections per batch"
     elif padding == "max_batch":
@@ -97,13 +102,10 @@ def pad_list_tensors(
             if location == "cpu":
                 tensor_i = tensor_i.cpu()
             tensor_i = tensor_i.tolist()
+        if location == "cpu":
+            tensor_i = tensor_i.cpu()
         if return_tensors == "np":
-            if location == "cpu":
-                tensor_i = tensor_i.cpu()
             tensor_i = tensor_i.numpy()
-        else:
-            if location == "cpu":
-                tensor_i = tensor_i.cpu()
         new.append(tensor_i)
     if return_tensors == "np":
         return np.stack(new, axis=0)
@@ -152,8 +154,7 @@ def _clip_box(tensor, box_size: Tuple[int, int]):
 def _nonempty_boxes(box, threshold: float = 0.0) -> torch.Tensor:
     widths = box[:, 2] - box[:, 0]
     heights = box[:, 3] - box[:, 1]
-    keep = (widths > threshold) & (heights > threshold)
-    return keep
+    return (widths > threshold) & (heights > threshold)
 
 
 def get_norm(norm, out_channels):
@@ -237,9 +238,10 @@ def build_backbone(cfg):
             "norm": norm,
             "stride_in_1x1": stride_in_1x1,
             "dilation": dilation,
+            "block_class": BottleneckBlock,
         }
 
-        stage_kargs["block_class"] = BottleneckBlock
+
         blocks = ResNet.make_stage(**stage_kargs)
         in_channels = out_channels
         out_channels *= 2
@@ -377,11 +379,10 @@ def _fmt_box_list(box_tensor, batch_index: int):
 
 
 def convert_boxes_to_pooler_format(box_lists: List[torch.Tensor]):
-    pooler_fmt_boxes = torch.cat(
+    return torch.cat(
         [_fmt_box_list(box_list, i) for i, box_list in enumerate(box_lists)],
         dim=0,
     )
-    return pooler_fmt_boxes
 
 
 def assign_boxes_to_levels(
@@ -557,8 +558,8 @@ class Matcher(object):
         assert thresholds[0] > 0
         thresholds.insert(0, -float("inf"))
         thresholds.append(float("inf"))
-        assert all([low <= high for (low, high) in zip(thresholds[:-1], thresholds[1:])])
-        assert all([label_i in [-1, 0, 1] for label_i in labels])
+        assert all(low <= high for (low, high) in zip(thresholds[:-1], thresholds[1:]))
+        assert all(label_i in [-1, 0, 1] for label_i in labels)
         assert len(labels) == len(thresholds) - 1
         self.thresholds = thresholds
         self.labels = labels
@@ -692,12 +693,11 @@ class RPNOutputs(object):
         Returns:
             pred_objectness_logits (list[Tensor]) -> (N, Hi*Wi*A).
         """
-        pred_objectness_logits = [
+        return [
             # Reshape: (N, A, Hi, Wi) -> (N, Hi, Wi, A) -> (N, Hi*Wi*A)
             score.permute(0, 2, 3, 1).reshape(self.num_images, -1)
             for score in self.pred_objectness_logits
         ]
-        return pred_objectness_logits
 
 
 # Main Classes
@@ -727,12 +727,11 @@ class Conv2d(torch.nn.Conv2d):
             ]
             output_shape = [x.shape[0], self.weight.shape[0]] + output_shape
             empty = _NewEmptyTensorOp.apply(x, output_shape)
-            if self.training:
-                _dummy = sum(x.view(-1)[0] for x in self.parameters()) * 0.0
-                return empty + _dummy
-            else:
+            if not self.training:
                 return empty
 
+            _dummy = sum(x.view(-1)[0] for x in self.parameters()) * 0.0
+            return empty + _dummy
         x = super().forward(x)
         if self.norm is not None:
             x = self.norm(x)
@@ -888,11 +887,7 @@ class BottleneckBlock(ResNetBlockBase):
 
         out = self.conv3(out)
 
-        if self.shortcut is not None:
-            shortcut = self.shortcut(x)
-        else:
-            shortcut = x
-
+        shortcut = self.shortcut(x) if self.shortcut is not None else x
         out += shortcut
         out = F.relu_(out)
         return out
@@ -1075,7 +1070,7 @@ class ROIPooler(nn.Module):
         # a bunch of testing
         assert math.isclose(min_level, int(min_level)) and math.isclose(max_level, int(max_level))
         assert len(scales) == max_level - min_level + 1, "not pyramid"
-        assert 0 < min_level and min_level <= max_level
+        assert min_level > 0 and min_level <= max_level
         if isinstance(output_size, int):
             output_size = (output_size, output_size)
         assert len(output_size) == 2 and isinstance(output_size[0], int) and isinstance(output_size[1], int)
@@ -1384,9 +1379,10 @@ class AnchorGenerator(nn.Module):
         assert self.num_features == len(sizes)
         assert self.num_features == len(aspect_ratios)
 
-        cell_anchors = [self.generate_cell_anchors(s, a).float() for s, a in zip(sizes, aspect_ratios)]
-
-        return cell_anchors
+        return [
+            self.generate_cell_anchors(s, a).float()
+            for s, a in zip(sizes, aspect_ratios)
+        ]
 
     @property
     def box_dim(self):
@@ -1585,7 +1581,6 @@ class RPN(nn.Module):
 
         if self.training:
             raise NotImplementedError()
-            return self.training(outputs, images, image_shapes, features, gt_boxes)
         else:
             return self.inference(outputs, images, image_shapes, features, gt_boxes)
 
@@ -1796,7 +1791,7 @@ class GeneralizedRCNN(nn.Module):
             ]
             missing_keys.extend(head_model_state_dict_without_base_prefix - base_model_state_dict)
 
-        if len(unexpected_keys) > 0:
+        if unexpected_keys:
             print(
                 f"Some weights of the model checkpoint at {pretrained_model_name_or_path} were not used when "
                 f"initializing {model.__class__.__name__}: {unexpected_keys}\n"
@@ -1807,7 +1802,7 @@ class GeneralizedRCNN(nn.Module):
             )
         else:
             print(f"All model checkpoint weights were used when initializing {model.__class__.__name__}.\n")
-        if len(missing_keys) > 0:
+        if missing_keys:
             print(
                 f"Some weights of {model.__class__.__name__} were not initialized from the model checkpoint at {pretrained_model_name_or_path} "
                 f"and are newly initialized: {missing_keys}\n"
@@ -1819,7 +1814,7 @@ class GeneralizedRCNN(nn.Module):
                 f"If your task is similar to the task the model of the checkpoint was trained on, "
                 f"you can already use {model.__class__.__name__} for predictions without further training."
             )
-        if len(error_msgs) > 0:
+        if error_msgs:
             raise RuntimeError(
                 "Error(s) in loading state_dict for {}:\n\t{}".format(
                     model.__class__.__name__, "\n\t".join(error_msgs)

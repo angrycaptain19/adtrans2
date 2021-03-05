@@ -88,14 +88,15 @@ class BaseTransformer(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.step_count = 0
         self.output_dir = Path(self.hparams.output_dir)
-        cache_dir = self.hparams.cache_dir if self.hparams.cache_dir else None
+        cache_dir = self.hparams.cache_dir or None
         if config is None:
             self.config = AutoConfig.from_pretrained(
-                self.hparams.config_name if self.hparams.config_name else self.hparams.model_name_or_path,
-                **({"num_labels": num_labels} if num_labels is not None else {}),
+                self.hparams.config_name or self.hparams.model_name_or_path,
+                {"num_labels": num_labels} if num_labels is not None else {},
                 cache_dir=cache_dir,
-                **config_kwargs,
+                **config_kwargs
             )
+
         else:
             self.config: PretrainedConfig = config
 
@@ -107,9 +108,10 @@ class BaseTransformer(pl.LightningModule):
 
         if tokenizer is None:
             self.tokenizer = AutoTokenizer.from_pretrained(
-                self.hparams.tokenizer_name if self.hparams.tokenizer_name else self.hparams.model_name_or_path,
+                self.hparams.tokenizer_name or self.hparams.model_name_or_path,
                 cache_dir=cache_dir,
             )
+
         else:
             self.tokenizer: PreTrainedTokenizer = tokenizer
         self.model_type = MODEL_MODES[mode]
@@ -140,14 +142,23 @@ class BaseTransformer(pl.LightningModule):
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
-                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "params": [
+                    p
+                    for n, p in model.named_parameters()
+                    if all(nd not in n for nd in no_decay)
+                ],
                 "weight_decay": self.hparams.weight_decay,
             },
             {
-                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "params": [
+                    p
+                    for n, p in model.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
                 "weight_decay": 0.0,
             },
         ]
+
         if self.hparams.adafactor:
             optimizer = Adafactor(
                 optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False

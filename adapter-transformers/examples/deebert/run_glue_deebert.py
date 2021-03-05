@@ -90,24 +90,28 @@ def train(args, train_dataset, model, tokenizer, train_highway=False):
                 "params": [
                     p
                     for n, p in model.named_parameters()
-                    if ("highway" in n) and (not any(nd in n for nd in no_decay))
+                    if "highway" in n and all(nd not in n for nd in no_decay)
                 ],
                 "weight_decay": args.weight_decay,
             },
             {
                 "params": [
-                    p for n, p in model.named_parameters() if ("highway" in n) and (any(nd in n for nd in no_decay))
+                    p
+                    for n, p in model.named_parameters()
+                    if ("highway" in n) and (any(nd in n for nd in no_decay))
                 ],
                 "weight_decay": 0.0,
             },
         ]
+
     else:
         optimizer_grouped_parameters = [
             {
                 "params": [
                     p
                     for n, p in model.named_parameters()
-                    if ("highway" not in n) and (not any(nd in n for nd in no_decay))
+                    if "highway" not in n
+                    and all(nd not in n for nd in no_decay)
                 ],
                 "weight_decay": args.weight_decay,
             },
@@ -115,11 +119,13 @@ def train(args, train_dataset, model, tokenizer, train_highway=False):
                 "params": [
                     p
                     for n, p in model.named_parameters()
-                    if ("highway" not in n) and (any(nd in n for nd in no_decay))
+                    if ("highway" not in n)
+                    and (any(nd in n for nd in no_decay))
                 ],
                 "weight_decay": 0.0,
             },
         ]
+
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
@@ -293,7 +299,7 @@ def evaluate(args, model, tokenizer, prefix="", output_layer=-1, eval_highway=Fa
         eval_time = time.time() - st
         logger.info("Eval time: {}".format(eval_time))
 
-        eval_loss = eval_loss / nb_eval_steps
+        eval_loss /= nb_eval_steps
         if args.output_mode == "classification":
             preds = np.argmax(preds, axis=1)
         elif args.output_mode == "regression":
@@ -303,7 +309,7 @@ def evaluate(args, model, tokenizer, prefix="", output_layer=-1, eval_highway=Fa
 
         if eval_highway:
             logger.info("Exit layer counter: {}".format(exit_layer_counter))
-            actual_cost = sum([l * c for l, c in exit_layer_counter.items()])
+            actual_cost = sum(l * c for l, c in exit_layer_counter.items())
             full_cost = len(eval_dataloader) * model.num_layers
             logger.info("Expected saving: {}".format(actual_cost / full_cost))
             if args.early_exit_entropy >= 0:
@@ -385,8 +391,9 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     elif output_mode == "regression":
         all_labels = torch.tensor([f.label for f in features], dtype=torch.float)
 
-    dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, all_labels)
-    return dataset
+    return TensorDataset(
+        all_input_ids, all_attention_mask, all_token_type_ids, all_labels
+    )
 
 
 def main():
@@ -606,10 +613,13 @@ def main():
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
     tokenizer = tokenizer_class.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+        args.tokenizer_name
+        if args.tokenizer_name
+        else args.model_name_or_path,
         do_lower_case=args.do_lower_case,
-        cache_dir=args.cache_dir if args.cache_dir else None,
+        cache_dir=args.cache_dir or None,
     )
+
     model = model_class.from_pretrained(
         args.model_name_or_path,
         from_tf=bool(".ckpt" in args.model_name_or_path),

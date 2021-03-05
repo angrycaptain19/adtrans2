@@ -14,8 +14,10 @@ def fill_mask(masked_input, model, tokenizer, topk=5):
     prob = logits.softmax(dim=0)
     values, indices = prob.topk(k=topk, dim=0)
     topk_predicted_token_bpe = " ".join(
-        [tokenizer.convert_ids_to_tokens(indices[i].item()) for i in range(len(indices))]
+        tokenizer.convert_ids_to_tokens(indices[i].item())
+        for i in range(len(indices))
     )
+
     masked_token = tokenizer.mask_token
     topk_filled_outputs = []
     for index, predicted_token_bpe in enumerate(topk_predicted_token_bpe.split(" ")):

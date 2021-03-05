@@ -44,8 +44,7 @@ def make_es_index_snippets(es_client, passages_dset, index_name="english_wiki_ki
     successes = 0
 
     def passage_generator():
-        for passage in passages_dset:
-            yield passage
+        yield from passages_dset
 
     # create the ES index
     for ok, action in streaming_bulk(
@@ -61,7 +60,7 @@ def make_es_index_snippets(es_client, passages_dset, index_name="english_wiki_ki
 def query_es_index(question, es_client, index_name="english_wiki_kilt_snippets_100w", n_results=10, min_length=20):
     q = question.lower()
     banned = ["how", "why", "what", "where", "which", "do", "does", "is", "?", "eli5", "eli5:"]
-    q = " ".join([w for w in q.split() if w not in banned])
+    q = " ".join(w for w in q.split() if w not in banned)
     response = es_client.search(
         index=index_name,
         body={
@@ -76,7 +75,10 @@ def query_es_index(question, es_client, index_name="english_wiki_kilt_snippets_1
         },
     )
     hits = response["hits"]["hits"]
-    support_doc = "<P> " + " <P> ".join([hit["_source"]["passage_text"] for hit in hits])
+    support_doc = "<P> " + " <P> ".join(
+        hit["_source"]["passage_text"] for hit in hits
+    )
+
     res_list = [dict([(k, hit["_source"][k]) for k in hit["_source"] if k != "passage_text"]) for hit in hits]
     for r, hit in zip(res_list, hits):
         r["passage_id"] = hit["_id"]
@@ -147,8 +149,7 @@ class RetrievalQAEmbedder(torch.nn.Module):
                     head_mask=head_mask,
                 )
                 sequence_output = encoder_outputs[0]
-                pooled_output = self.sent_encoder.pooler(sequence_output)
-                return pooled_output
+                return self.sent_encoder.pooler(sequence_output)
 
             # run embedding layer on everything at once
             embedding_output = self.sent_encoder.embeddings(
@@ -178,8 +179,7 @@ class RetrievalQAEmbedder(torch.nn.Module):
         compare_scores = torch.mm(q_reps, a_reps.t())
         loss_qa = self.ce_loss(compare_scores, torch.arange(compare_scores.shape[1]).to(device))
         loss_aq = self.ce_loss(compare_scores.t(), torch.arange(compare_scores.shape[0]).to(device))
-        loss = (loss_qa + loss_aq) / 2
-        return loss
+        return (loss_qa + loss_aq) / 2
 
 
 def make_qa_retriever_model(model_name="google/bert_uncased_L-8_H-512_A-8", from_file=None, device="cuda:0"):
@@ -305,8 +305,8 @@ def evaluate_qa_retriever(model, dataset, tokenizer, args):
     )
     data_loader = DataLoader(dataset, batch_size=args.batch_size, sampler=eval_sampler, collate_fn=model_collate_fn)
     epoch_iterator = tqdm(data_loader, desc="Iteration", disable=True)
-    tot_loss = 0.0
     with torch.no_grad():
+        tot_loss = 0.0
         for step, batch in enumerate(epoch_iterator):
             q_ids, q_mask, a_ids, a_mask = batch
             loss = model(q_ids, q_mask, a_ids, a_mask)
@@ -345,7 +345,7 @@ class ELI5DatasetS2S(Dataset):
         self.data = examples_array
         self.make_doc_function = make_doc_fun
         self.document_cache = {} if document_cache is None else document_cache
-        assert not (make_doc_fun is None and document_cache is None)
+        assert make_doc_fun is not None or document_cache is not None
         # make index of specific question-answer pairs from multi-answers
         if self.training:
             self.qa_id_list = [
@@ -404,13 +404,12 @@ def make_qa_s2s_batch(qa_list, tokenizer, max_len=64, max_a_len=360, device="cud
     )
     lm_labels = a_ids[:, 1:].contiguous().clone()
     lm_labels[a_mask[:, 1:].contiguous() == 0] = -100
-    model_inputs = {
+    return {
         "input_ids": q_ids,
         "attention_mask": q_mask,
         "decoder_input_ids": a_ids[:, :-1].contiguous(),
         "lm_labels": lm_labels,
     }
-    return model_inputs
 
 
 def train_qa_s2s_epoch(model, dataset, tokenizer, optimizer, scheduler, args, e=0, curriculum=False):
@@ -632,7 +631,7 @@ def query_qa_dense_index(
     q_rep = embed_questions_for_retrieval([question], tokenizer, qa_embedder, device=device)
     D, I = wiki_index.search(q_rep, 2 * n_results)
     res_passages = [wiki_passages[int(i)] for i in I[0]]
-    support_doc = "<P> " + " <P> ".join([p["passage_text"] for p in res_passages])
+    support_doc = "<P> " + " <P> ".join(p["passage_text"] for p in res_passages)
     res_list = [dict([(k, p[k]) for k in wiki_passages.column_names]) for p in res_passages]
     res_list = [res for res in res_list if len(res["passage_text"].split()) > min_length][:n_results]
     for r, sc in zip(res_list, D[0]):
@@ -645,8 +644,10 @@ def batch_query_qa_dense_index(questions, qa_embedder, tokenizer, wiki_passages,
     D, I = wiki_index.search(q_rep, n_results)
     res_passages_lst = [[wiki_passages[int(i)] for i in i_lst] for i_lst in I]
     support_doc_lst = [
-        "<P> " + " <P> ".join([p["passage_text"] for p in res_passages]) for res_passages in res_passages_lst
+        "<P> " + " <P> ".join(p["passage_text"] for p in res_passages)
+        for res_passages in res_passages_lst
     ]
+
     all_res_lists = []
     for (res_passages, dl) in zip(res_passages_lst, D):
         res_list = [dict([(k, p[k]) for k in wiki_passages.column_names]) for p in res_passages]
@@ -661,7 +662,7 @@ def query_qa_dense_index_nn(passage, qa_embedder, tokenizer, wiki_passages, wiki
     a_rep = embed_passages_for_retrieval([passage], tokenizer, qa_embedder)
     D, I = wiki_index.search(a_rep, 2 * n_results)
     res_passages = [wiki_passages[int(i)] for i in I[0]]
-    support_doc = "<P> " + " <P> ".join([p["passage_text"] for p in res_passages])
+    support_doc = "<P> " + " <P> ".join(p["passage_text"] for p in res_passages)
     res_list = [dict([(k, p[k]) for k in wiki_passages.column_names]) for p in res_passages]
     res_list = [res for res in res_list if len(res["passage_text"].split()) > min_length][:n_results]
     for r, sc, i in zip(res_list, D[0], I[0]):
@@ -675,8 +676,10 @@ def batch_query_qa_dense_index_nn(passages, qa_embedder, tokenizer, wiki_passage
     D, I = wiki_index.search(a_reps, n_results)
     res_passages_lst = [[wiki_passages[int(i)] for i in i_lst] for i_lst in I]
     support_doc_lst = [
-        "<P> " + " <P> ".join([p["passage_text"] for p in res_passages]) for res_passages in res_passages_lst
+        "<P> " + " <P> ".join(p["passage_text"] for p in res_passages)
+        for res_passages in res_passages_lst
     ]
+
     all_res_lists = []
     for (res_passages, dl, il) in zip(res_passages_lst, D, I):
         res_list = [dict([(k, p[k]) for k in wiki_passages.column_names]) for p in res_passages]

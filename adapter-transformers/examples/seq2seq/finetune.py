@@ -239,14 +239,13 @@ class SummarizationModule(BaseTransformer):
     def get_dataset(self, type_path) -> Seq2SeqDataset:
         n_obs = self.n_obs[type_path]
         max_target_length = self.target_lens[type_path]
-        dataset = self.dataset_class(
+        return self.dataset_class(
             self.tokenizer,
             type_path=type_path,
             n_obs=n_obs,
             max_target_length=max_target_length,
             **self.dataset_kwargs,
         )
-        return dataset
 
     def get_dataloader(self, type_path: str, batch_size: int, shuffle: bool = False) -> DataLoader:
         dataset = self.get_dataset(type_path)
@@ -285,8 +284,9 @@ class SummarizationModule(BaseTransformer):
             )
 
     def train_dataloader(self) -> DataLoader:
-        dataloader = self.get_dataloader("train", batch_size=self.hparams.train_batch_size, shuffle=True)
-        return dataloader
+        return self.get_dataloader(
+            "train", batch_size=self.hparams.train_batch_size, shuffle=True
+        )
 
     def val_dataloader(self) -> DataLoader:
         return self.get_dataloader("val", batch_size=self.hparams.eval_batch_size)

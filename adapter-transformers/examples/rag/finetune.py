@@ -300,26 +300,24 @@ class GenerativeQAModule(BaseTransformer):
     def get_dataset(self, type_path) -> Seq2SeqDataset:
         n_obs = self.n_obs[type_path]
         max_target_length = self.target_lens[type_path]
-        dataset = Seq2SeqDataset(
+        return Seq2SeqDataset(
             self.tokenizer,
             type_path=type_path,
             n_obs=n_obs,
             max_target_length=max_target_length,
             **self.dataset_kwargs,
         )
-        return dataset
 
     def get_dataloader(self, type_path: str, batch_size: int, shuffle: bool = False) -> DataLoader:
         dataset = self.get_dataset(type_path)
 
-        dataloader = DataLoader(
+        return DataLoader(
             dataset,
             batch_size=batch_size,
             collate_fn=dataset.collate_fn,
             shuffle=shuffle,
             num_workers=self.num_workers,
         )
-        return dataloader
 
     def train_dataloader(self) -> DataLoader:
         dataloader = self.get_dataloader("train", batch_size=self.hparams.train_batch_size, shuffle=True)
